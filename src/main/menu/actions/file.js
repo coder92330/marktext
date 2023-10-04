@@ -415,17 +415,12 @@ ipcMain.on('mt::format-link-click', (e, { data, dirname }) => {
     return
   }
 
-  const urlCandidate = data.href || data.text
-  if (URL_REG.test(urlCandidate)) {
-    shell.openExternal(urlCandidate)
+  const href = data.href || data.text
+  if (URL_REG.test(href)) {
+    shell.openExternal(href)
     return
-  } else if (/^[a-z0-9]+:\/\//i.test(urlCandidate)) {
+  } else if (/^[a-z0-9]+:\/\//i.test(href)) {
     // Prevent other URLs.
-    return
-  }
-
-  const href = data.href
-  if (!href) {
     return
   }
 
@@ -437,7 +432,6 @@ ipcMain.on('mt::format-link-click', (e, { data, dirname }) => {
   }
 
   if (pathname) {
-    pathname = path.normalize(pathname)
     if (isMarkdownFile(pathname)) {
       const win = BrowserWindow.fromWebContents(e.sender)
       openFileOrFolder(win, pathname)
