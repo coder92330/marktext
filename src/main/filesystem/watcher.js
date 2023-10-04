@@ -186,18 +186,18 @@ class Watcher {
     let renameTimer = null
 
     watcher
-      .on('add', async pathname => {
-        if (!await this._shouldIgnoreEvent(win.id, pathname, type, usePolling)) {
+      .on('add', pathname => {
+        if (!this._shouldIgnoreEvent(win.id, pathname, type)) {
           const { _preferences } = this
-          const eol = _preferences.getPreferredEol()
+          const eol = _preferences.getPreferedEol()
           const { autoGuessEncoding, trimTrailingNewline } = _preferences.getAll()
           add(win, pathname, type, eol, autoGuessEncoding, trimTrailingNewline)
         }
       })
-      .on('change', async pathname => {
-        if (!await this._shouldIgnoreEvent(win.id, pathname, type, usePolling)) {
+      .on('change', pathname => {
+        if (!this._shouldIgnoreEvent(win.id, pathname, type)) {
           const { _preferences } = this
-          const eol = _preferences.getPreferredEol()
+          const eol = _preferences.getPreferedEol()
           const { autoGuessEncoding, trimTrailingNewline } = _preferences.getAll()
           change(win, pathname, type, eol, autoGuessEncoding, trimTrailingNewline)
         }
@@ -323,7 +323,7 @@ class Watcher {
    * @param {string} pathname The path to ignore.
    * @param {number} [duration] The duration in ms to ignore the changed event.
    */
-  ignoreChangedEvent (windowId, pathname, duration = WATCHER_STABILITY_THRESHOLD + (WATCHER_STABILITY_POLL_INTERVAL * 2)) {
+  ignoreChangedEvent (windowId, pathname, duration = WATCHER_STABILITY_THRESHOLD + WATCHER_STABILITY_POLL_INTERVAL + 1000) {
     this._ignoreChangeEvents.push({ windowId, pathname, duration, start: new Date() })
   }
 
@@ -333,9 +333,8 @@ class Watcher {
    * @param {number} winId
    * @param {string} pathname
    * @param {string} type
-   * @param {boolean} usePolling
    */
-  async _shouldIgnoreEvent (winId, pathname, type, usePolling) {
+  _shouldIgnoreEvent (winId, pathname, type) {
     if (type === 'file') {
       const { _ignoreChangeEvents } = this
       const currentTime = new Date()
@@ -344,25 +343,8 @@ class Watcher {
         if (windowId === winId && pathToIgnore === pathname) {
           _ignoreChangeEvents.splice(i, 1)
           --i
-
-          // Modification origin is the editor and we should ignore the event.
           if (currentTime - start < duration) {
             return true
-          }
-
-          // Try to catch cloud drives that emit the change event not immediately or re-sync the change (GH#3044).
-          if (!usePolling) {
-            try {
-              const fileInfo = await fsPromises.stat(pathname)
-              if (fileInfo.mtime - start < duration) {
-                if (global.MARKTEXT_DEBUG_VERBOSE >= 3) {
-                  console.log(`Ignoring file event after "stat": current="${currentTime}", start="${start}", file="${fileInfo.mtime}".`)
-                }
-                return true
-              }
-            } catch (error) {
-              console.error('Failed to "stat" file to determine modification time:', error)
-            }
           }
         }
       }
